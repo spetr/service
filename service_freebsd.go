@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"os/user"
 	"syscall"
-	"text/template"
 )
 
 const version = "freebsd"
@@ -39,7 +38,7 @@ func (freebsdSystem) New(i Interface, c *Config) (Service, error) {
 }
 
 func init() {
-	ChooseSystem(darwinSystem{})
+	ChooseSystem(freebsdSystem{})
 }
 
 var interactive = false
@@ -91,25 +90,6 @@ func (s *freebsdService) getHomeDir() (string, error) {
 
 func (s *freebsdService) getServiceFilePath() (string, error) {
 	return "", nil
-}
-
-func (s *freebsdService) template() *template.Template {
-	functions := template.FuncMap{
-		"bool": func(v bool) string {
-			if v {
-				return "true"
-			}
-			return "false"
-		},
-	}
-
-	customConfig := s.Option.string(optionLaunchdConfig, "")
-
-	if customConfig != "" {
-		return template.Must(template.New("").Funcs(functions).Parse(customConfig))
-	} else {
-		return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
-	}
 }
 
 func (s *freebsdService) Install() error {
