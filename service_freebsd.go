@@ -2,22 +2,15 @@
 // Use of this source code is governed by a zlib-style
 // license that can be found in the LICENSE file.
 
-// +build freebsd
-
 package service
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"os/user"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"syscall"
 	"text/template"
-	"time"
 )
 
 const version = "freebsd"
@@ -97,14 +90,7 @@ func (s *freebsdService) getHomeDir() (string, error) {
 }
 
 func (s *freebsdService) getServiceFilePath() (string, error) {
-	if s.userService {
-		homeDir, err := s.getHomeDir()
-		if err != nil {
-			return "", err
-		}
-		return homeDir + "/Library/LaunchAgents/" + s.Name + ".plist", nil
-	}
-	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
+	return "", nil
 }
 
 func (s *freebsdService) template() *template.Template {
@@ -127,108 +113,26 @@ func (s *freebsdService) template() *template.Template {
 }
 
 func (s *freebsdService) Install() error {
-	confPath, err := s.getServiceFilePath()
-	if err != nil {
-		return err
-	}
-	_, err = os.Stat(confPath)
-	if err == nil {
-		return fmt.Errorf("Init already exists: %s", confPath)
-	}
-
-	if s.userService {
-		// Ensure that ~/Library/LaunchAgents exists.
-		err = os.MkdirAll(filepath.Dir(confPath), 0700)
-		if err != nil {
-			return err
-		}
-	}
-
-	f, err := os.Create(confPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	path, err := s.execPath()
-	if err != nil {
-		return err
-	}
-
-	var to = &struct {
-		*Config
-		Path string
-
-		KeepAlive, RunAtLoad bool
-		SessionCreate        bool
-	}{
-		Config:        s.Config,
-		Path:          path,
-		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
-		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
-		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
-	}
-
-	return s.template().Execute(f, to)
+	return nil
 }
 
 func (s *freebsdService) Uninstall() error {
 	s.Stop()
-
-	confPath, err := s.getServiceFilePath()
-	if err != nil {
-		return err
-	}
-	return os.Remove(confPath)
+	return nil
 }
 
 func (s *freebsdService) Status() (Status, error) {
-	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
-	if exitCode == 0 && err != nil {
-		if !strings.Contains(err.Error(), "failed with stderr") {
-			return StatusUnknown, err
-		}
-	}
-
-	re := regexp.MustCompile(`"PID" = ([0-9]+);`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) == 2 {
-		return StatusRunning, nil
-	}
-
-	confPath, err := s.getServiceFilePath()
-	if err != nil {
-		return StatusUnknown, err
-	}
-
-	if _, err = os.Stat(confPath); err == nil {
-		return StatusStopped, nil
-	}
-
-	return StatusUnknown, ErrNotInstalled
+	return StatusUnknown, nil
 }
 
 func (s *freebsdService) Start() error {
-	confPath, err := s.getServiceFilePath()
-	if err != nil {
-		return err
-	}
-	return run("launchctl", "load", confPath)
+	return nil
 }
 func (s *freebsdService) Stop() error {
-	confPath, err := s.getServiceFilePath()
-	if err != nil {
-		return err
-	}
-	return run("launchctl", "unload", confPath)
+	return nil
 }
 func (s *freebsdService) Restart() error {
-	err := s.Stop()
-	if err != nil {
-		return err
-	}
-	time.Sleep(50 * time.Millisecond)
-	return s.Start()
+	return nil
 }
 
 func (s *freebsdService) Run() error {
