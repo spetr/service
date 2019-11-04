@@ -2,7 +2,7 @@
 // Use of this source code is governed by a zlib-style
 // license that can be found in the LICENSE file.
 
-// +build darwin
+// +build freebsd
 
 package service
 
@@ -20,23 +20,22 @@ import (
 	"time"
 )
 
-const maxPathSize = 32 * 1024
+const version = "freebsd"
 
-const version = "darwin-launchd"
+type freebsdSystem struct{}
 
-type darwinSystem struct{}
-
-func (darwinSystem) String() string {
+func (freebsdSystem) String() string {
 	return version
 }
-func (darwinSystem) Detect() bool {
+func (freebsdSystem) Detect() bool {
 	return true
 }
-func (darwinSystem) Interactive() bool {
+func (freebsdSystem) Interactive() bool {
 	return interactive
 }
-func (darwinSystem) New(i Interface, c *Config) (Service, error) {
-	s := &darwinLaunchdService{
+
+func (freebsdSystem) New(i Interface, c *Config) (Service, error) {
+	s := &freebsdService{
 		i:      i,
 		Config: c,
 
@@ -65,25 +64,25 @@ func isInteractive() (bool, error) {
 	return os.Getppid() != 1, nil
 }
 
-type darwinLaunchdService struct {
+type freebsdService struct {
 	i Interface
 	*Config
 
 	userService bool
 }
 
-func (s *darwinLaunchdService) String() string {
+func (s *freebsdService) String() string {
 	if len(s.DisplayName) > 0 {
 		return s.DisplayName
 	}
 	return s.Name
 }
 
-func (s *darwinLaunchdService) Platform() string {
+func (s *freebsdService) Platform() string {
 	return version
 }
 
-func (s *darwinLaunchdService) getHomeDir() (string, error) {
+func (s *freebsdService) getHomeDir() (string, error) {
 	u, err := user.Current()
 	if err == nil {
 		return u.HomeDir, nil
@@ -97,7 +96,7 @@ func (s *darwinLaunchdService) getHomeDir() (string, error) {
 	return homeDir, nil
 }
 
-func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
+func (s *freebsdService) getServiceFilePath() (string, error) {
 	if s.userService {
 		homeDir, err := s.getHomeDir()
 		if err != nil {
@@ -108,7 +107,7 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
-func (s *darwinLaunchdService) template() *template.Template {
+func (s *freebsdService) template() *template.Template {
 	functions := template.FuncMap{
 		"bool": func(v bool) string {
 			if v {
@@ -127,7 +126,7 @@ func (s *darwinLaunchdService) template() *template.Template {
 	}
 }
 
-func (s *darwinLaunchdService) Install() error {
+func (s *freebsdService) Install() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
 		return err
@@ -173,7 +172,7 @@ func (s *darwinLaunchdService) Install() error {
 	return s.template().Execute(f, to)
 }
 
-func (s *darwinLaunchdService) Uninstall() error {
+func (s *freebsdService) Uninstall() error {
 	s.Stop()
 
 	confPath, err := s.getServiceFilePath()
@@ -183,7 +182,7 @@ func (s *darwinLaunchdService) Uninstall() error {
 	return os.Remove(confPath)
 }
 
-func (s *darwinLaunchdService) Status() (Status, error) {
+func (s *freebsdService) Status() (Status, error) {
 	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
 	if exitCode == 0 && err != nil {
 		if !strings.Contains(err.Error(), "failed with stderr") {
@@ -209,21 +208,21 @@ func (s *darwinLaunchdService) Status() (Status, error) {
 	return StatusUnknown, ErrNotInstalled
 }
 
-func (s *darwinLaunchdService) Start() error {
+func (s *freebsdService) Start() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
 		return err
 	}
 	return run("launchctl", "load", confPath)
 }
-func (s *darwinLaunchdService) Stop() error {
+func (s *freebsdService) Stop() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
 		return err
 	}
 	return run("launchctl", "unload", confPath)
 }
-func (s *darwinLaunchdService) Restart() error {
+func (s *freebsdService) Restart() error {
 	err := s.Stop()
 	if err != nil {
 		return err
@@ -232,7 +231,7 @@ func (s *darwinLaunchdService) Restart() error {
 	return s.Start()
 }
 
-func (s *darwinLaunchdService) Run() error {
+func (s *freebsdService) Run() error {
 	var err error
 
 	err = s.i.Start(s)
@@ -249,36 +248,12 @@ func (s *darwinLaunchdService) Run() error {
 	return s.i.Stop(s)
 }
 
-func (s *darwinLaunchdService) Logger(errs chan<- error) (Logger, error) {
+func (s *freebsdService) Logger(errs chan<- error) (Logger, error) {
 	if interactive {
 		return ConsoleLogger, nil
 	}
 	return s.SystemLogger(errs)
 }
-func (s *darwinLaunchdService) SystemLogger(errs chan<- error) (Logger, error) {
+func (s *freebsdService) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
-
-var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
-"http://www.apple.com/DTDs/PropertyList-1.0.dtd" >
-<plist version='1.0'>
-<dict>
-<key>Label</key><string>{{html .Name}}</string>
-<key>ProgramArguments</key>
-<array>
-        <string>{{html .Path}}</string>
-{{range .Config.Arguments}}
-        <string>{{html .}}</string>
-{{end}}
-</array>
-{{if .UserName}}<key>UserName</key><string>{{html .UserName}}</string>{{end}}
-{{if .ChRoot}}<key>RootDirectory</key><string>{{html .ChRoot}}</string>{{end}}
-{{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
-<key>SessionCreate</key><{{bool .SessionCreate}}/>
-<key>KeepAlive</key><{{bool .KeepAlive}}/>
-<key>RunAtLoad</key><{{bool .RunAtLoad}}/>
-<key>Disabled</key><false/>
-</dict>
-</plist>
-`
