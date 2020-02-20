@@ -153,14 +153,14 @@ func (s *systemd) Install() error {
 		SuccessExitStatus    string
 		LogOutput            bool
 	}{
-		s.Config,
-		path,
-		s.hasOutputFileSupport(),
-		s.Option.string(optionReloadSignal, ""),
-		s.Option.string(optionPIDFile, ""),
-		s.Option.string(optionRestart, "always"),
-		s.Option.string(optionSuccessExitStatus, ""),
-		s.Option.bool(optionLogOutput, optionLogOutputDefault),
+		Config:               s.Config,
+		Path:                 path,
+		HasOutputFileSupport: s.hasOutputFileSupport(),
+		ReloadSignal:         s.Option.string(optionReloadSignal, ""),
+		PIDFile:              s.Option.string(optionPIDFile, ""),
+		Restart:              s.Option.string(optionRestart, "always"),
+		SuccessExitStatus:    s.Option.string(optionSuccessExitStatus, ""),
+		LogOutput:            s.Option.bool(optionLogOutput, optionLogOutputDefault),
 	}
 
 	err = s.template().Execute(f, to)
@@ -168,10 +168,13 @@ func (s *systemd) Install() error {
 		return err
 	}
 
-	err = run("systemctl", "enable", s.Name+".service")
-	if err != nil {
-		return err
+	if s.Option.bool(optionEnable, optionEnableDefault) {
+		err = run("systemctl", "enable", s.Name+".service")
+		if err != nil {
+			return err
+		}
 	}
+
 	return run("systemctl", "daemon-reload")
 }
 

@@ -210,7 +210,7 @@ func (ws *windowsService) Install() error {
 	s, err = m.CreateService(ws.Name, exepath, mgr.Config{
 		DisplayName:      ws.DisplayName,
 		Description:      ws.Description,
-		StartType:        mgr.StartAutomatic,
+		StartType:        mgr.StartManual,
 		ServiceStartName: ws.UserName,
 		Password:         ws.Option.string("Password", ""),
 		Dependencies:     ws.Dependencies,

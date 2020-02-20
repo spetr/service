@@ -69,8 +69,10 @@ import (
 const (
 	optionKeepAlive            = "KeepAlive"
 	optionKeepAliveDefault     = true
-	optionRunAtLoad            = "RunAtLoad"
+	optionRunAtLoad            = "RunAtLoad" // For MacOS
 	optionRunAtLoadDefault     = false
+	optionEnable               = "Enable" // For Systemd
+	optionEnableDefault        = false
 	optionUserService          = "UserService"
 	optionUserServiceDefault   = false
 	optionSessionCreate        = "SessionCreate"
