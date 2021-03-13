@@ -31,7 +31,8 @@ func TestRunInterrupt(t *testing.T) {
 			<-time.After(200 * time.Millisecond)
 		}
 		if p.numStopped == 0 {
-			t.Fatal("Run() hasn't been stopped")
+			t.Error("Run() hasn't been stopped")
+			return
 		}
 	}()
 
